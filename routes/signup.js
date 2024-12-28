@@ -5,25 +5,28 @@ const bcrypt = require('bcrypt');
 const email = require('../middlewares/email');
 const cookieParser = require('cookie-parser');
 router.use(cookieParser());
+const jwt = require("jsonwebtoken");
 
-// Home route
+
 router.get('/', async (req, res) => {
     try {
-        const userId = req.cookies.user; // Fetch the user ID from cookies
+        const token = req.cookies.user; 
         let user = null;
-
-        if (userId) {
-            user = await signup.findById(userId); // Fetch user details from DB if userId exists
+        if (token) {
+            let data = jwt.verify(token, "harsh");
+            if (data) {
+                user = await signup.findById(data.userId); 
+            }
         }
 
-        res.render('home', { userId, user });
+        res.render('home', { user });
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, message: 'Server Error' });
     }
 });
 
-// Send email route
+
 router.post('/sendemail', async (req, res) => {
     try {
         const { name, email: userEmail, password } = req.body;
@@ -52,7 +55,7 @@ router.post('/sendemail', async (req, res) => {
     }
 });
 
-// Register route
+
 router.post('/register', async (req, res) => {
     try {
         const { email: userEmail, otp } = req.body;
@@ -69,8 +72,10 @@ router.post('/register', async (req, res) => {
         user.isVerified = true;
         await user.save();
 
-        res.cookie('user', user._id); // Set user ID in cookies
-        res.render('home', { userId: user._id, user }); // Pass the user and userId to the EJS template
+        let token = jwt.sign({ "userId" : user._id }, "harsh")
+        res.cookie('user', token );
+
+        res.redirect('/home'); 
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, message: 'Server error' });
